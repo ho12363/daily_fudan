@@ -3,6 +3,7 @@ from json import loads as json_loads
 from os import path as os_path
 from sys import exit as sys_exit
 from sys import argv as sys_argv
+from types import resolve_bases
 
 from lxml import etree
 from requests import session
@@ -10,6 +11,7 @@ import logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
+import ddddocr
 
 class Fudan:
     """
@@ -147,6 +149,14 @@ class Zlapp(Fudan):
             logging.info("未提交")
             self.last_info = last_info["d"]["info"]
 
+    def getCode(self):
+        img_src = "https://zlapp.fudan.edu.cn/backend/default/code"
+        response = self.session.get(img_src)
+        image = response.content
+        ocr = ddddocr.DdddOcr()
+        res = orc.classification(image)
+        self.code = res
+
     def checkin(self):
         """
         提交
@@ -158,7 +168,7 @@ class Zlapp(Fudan):
             "TE"        : "Trailers",
             "User-Agent": self.UA
         }
-
+        self.getCode()
         logging.debug("提交中")
 
         geo_api_info = json_loads(self.last_info["geo_api_info"])
@@ -171,7 +181,8 @@ class Zlapp(Fudan):
                     "province": province,
                     "city"    : city,
                     "area"    : " ".join(set((province, city, district))),
-                    "ismoved" : 0
+                    "ismoved" : 0,
+                    "code" : self.code
                 }
         )
         # logging.debug(self.last_info)

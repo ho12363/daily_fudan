@@ -11,6 +11,10 @@ import logging
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
+import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 import ddddocr
 
 class Fudan:
@@ -51,6 +55,7 @@ class Fudan:
             return page_login.text
         else:
             logging.debug("Fail to open Login Page, Check your Internet connection\n")
+            iy_info("Fail to open Login Page, Check your Internet connection\n")
             self.close()
 
     def login(self):
@@ -95,9 +100,11 @@ class Fudan:
 
         if post.status_code == 302:
             logging.debug("登录成功")
+            return 1
         else:
             logging.debug("登录失败，请检查账号信息")
-            self.close()
+            return 0
+            #self.close()
 
     def logout(self):
         """
@@ -144,10 +151,12 @@ class Zlapp(Fudan):
 
         if last_info["d"]["info"]["date"] == today:
             logging.info("今日已提交")
-            self.close()
+            return 1
+            #self.close()
         else:
             logging.info("未提交")
             self.last_info = last_info["d"]["info"]
+            return 0
 
     def getCode(self):
         img_src = "https://zlapp.fudan.edu.cn/backend/default/code"
@@ -201,20 +210,50 @@ def get_account():
     """
     获取账号信息
     """
-    uid, psw = sys_argv[1].strip().split(' ')
-    return uid, psw
+    uid, psw, IYUU_TOKEN = sys_argv[1].strip().split(' ')
+    return uid, psw, IYUU_TOKEN
+
+def iyuu(IYUU_TOKEN):
+    url = f"https://iyuu.cn/{IYUU_TOKEN}.send"
+    headers = {'Content-type': 'application/x-www-form-urlencoded'}
+    def send(text, desp=""):
+        Form = {'text': text, 'desp': desp}
+        return requests.post(url, data=Form, headers=headers, verify=False)
+    return send
 
 if __name__ == '__main__':
-    uid, psw = get_account()
+    uid, psw, IYUU_TOKEN = get_account()
+    
+    if IYUU_TOKEN: #有token则通知，无token不通知
+        if IYUU_TOKEN.startswith('IYUU'):
+            iy_info = iyuu(IYUU_TOKEN)
+        else:
+            def iy_info(text, desp=""):
+                pass
+    else:
+        def iy_info(text, desp=""):
+            pass
+        logging.error("请按readme操作，以正确完成配置～\n")
+        sys_exit(1)
+        
     # logging.debug("ACCOUNT：" + uid + psw)
     zlapp_login = 'https://uis.fudan.edu.cn/authserver/login?' \
                   'service=https://zlapp.fudan.edu.cn/site/ncov/fudanDaily'
     daily_fudan = Zlapp(uid, psw, url_login=zlapp_login)
-    daily_fudan.login()
+    if not daily_fudan.login():
+        iy_info("平安复旦：登陆失败")
+        sys_exit()
 
-    daily_fudan.check()
+    if daily_fudan.check():
+        iy_info("平安复旦：今日已填写")
+        sys_exit()
+
     daily_fudan.checkin()
     # 再检查一遍
-    daily_fudan.check()
+    if daily_fudan.check():
+        iy_info("平安复旦：今日已提交")
+    else:
+        iy_info("平安复旦：本次提交失败")
 
     daily_fudan.close()
+    sys_exit()

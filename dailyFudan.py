@@ -245,13 +245,14 @@ if __name__ == '__main__':
         sys_exit()
 
     if daily_fudan.check():
-        iy_info("平安复旦：今日已填写","已填写")
+        #iy_info("平安复旦：今日已填写","已填写")
         sys_exit()
 
     daily_fudan.checkin()
     # 再检查一遍
     if daily_fudan.check():
-        iy_info("平安复旦：今日已提交")
+        #iy_info("平安复旦：今日已提交")
+        pass
     else:
         iy_info("平安复旦：本次提交失败")
 
